@@ -1,15 +1,32 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <title></title>
+	<title></title>
 	<meta charset="utf-8" />
+	<link href="Content/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-7" data-bind="foreach: teams">
+				<div class="row">
+					<div class="col-md-8">
+						<h3 class="col-md-12">
+							<span data-bind="text: name"></span>
+							(<span data-bind="text: owner"></span>)
+						</h3>
+					</div>
+					<div class="col-md-4">
+						<h3 class="btn btn-success">Left: </h3>
+						<h3 class="btn btn-success">Max: </h3>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
-	<ul data-bind="foreach: teams">
-		<li data-bind="text: owner"></li>
-	</ul>
-
+	<script src="Scripts/jquery-2.1.4.min.js"></script>
+	<script src="Scripts/bootstrap.min.js"></script>
 	<script src="Scripts/knockout-3.3.0.js"></script>
 	<script src="Scripts/models.js"></script>
 </body>
