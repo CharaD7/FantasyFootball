@@ -6,13 +6,14 @@ function team(id, owner, name) {
 	self.owner = ko.observable(owner);
 	self.name = ko.observable(name);
 	self.players = ko.observableArray([]);
-	self.totalLeft = ko.computed(function() { return 
+	self.totalLeft = ko.computed(function() {
 		var totalBid = 0;
-		this.players.forEach(function (player) {
-			totalBid += player.auctionAmount;
+		alert(this.players().length);
+		this.players().forEach(function (player) {
+			totalBid += player.auctionAmount();
 		});
 		return totalBid;
-	}, self);
+	}, this);
 	self.maxBid = ko.computed(function () { return 100 - this.players.length + 1 }, self);
 };
 
@@ -33,6 +34,7 @@ function AppViewModel() {
 		new team(1, 'jersey', '*Backfield Not Included'),
 		new team(2, 'Brennan', 'Pistol Shrimp All-Stars')
 	]);
+	self.teams()[0].players().push(new player(1, 'Phillip', 'Rivers', 'Chargers', 'QB', 20));
 }
 
 ko.applyBindings(new AppViewModel());
