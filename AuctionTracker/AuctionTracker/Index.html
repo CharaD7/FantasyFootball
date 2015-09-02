@@ -15,6 +15,15 @@
 							<span data-bind="text: name"></span>
 							(<span data-bind="text: owner"></span>)
 						</h3>
+						<div data-bind="foreach: players">
+							<span data-bind="text: firstName"></span>
+						</div>
+						<div data-bind="foreach: rosterPositions">
+							<span>
+								<span data-bind="text: position"></span>
+								<span data-bind="text: number"></span>
+							</span>
+						</div>
 					</div>
 					<div class="col-md-4">
 						<h3 class="btn btn-success">Left: <span data-bind="text: totalLeft"></span></h3>
