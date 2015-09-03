@@ -32,11 +32,27 @@
 				</div>
 			</div>
 		</div>
+		<div class="row">
+			<ul data-bind="foreach: recentlyAuctionedPlayers">
+				<li data-bind="text: fullName"></li>
+			</ul>
+		</div>
+	</div>
+
+	<div>
+		<form data-bind="submit: auctionPlayer">
+			<select data-bind="options: teams, optionsText: 'name', optionsCaption: 'Select team', value: currentTeam"></select>
+			<select data-bind="options: players, optionsText: 'fullName', optionsCaption: 'Select player', value: currentPlayer"></select>
+			<input data-bind="value: currentAuctionPrice" />
+			<button type="submit">Submit test</button>
+		</form>
 	</div>
 
 	<script src="Scripts/jquery-2.1.4.min.js"></script>
 	<script src="Scripts/bootstrap.min.js"></script>
 	<script src="Scripts/knockout-3.3.0.js"></script>
+	<script src="Scripts/jquery.signalR-2.2.0.min.js"></script>
+	<script src="/signalr/hubs"></script>
 	<script src="Scripts/models.js"></script>
 </body>
 </html>
