@@ -2,6 +2,7 @@
 using Microsoft.AspNet.SignalR;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Web;
 
@@ -9,19 +10,28 @@ namespace AuctionTracker.Hubs
 {
 	public class PlayerHub : Hub
 	{
-		public void AuctionPlayer(Player player, Team team)
+		public void AuctionPlayer(Player player)
 		{
-			Clients.All.playerAuctioned(player, team);
+			var dc = new AuctionTrackerContext();
+			dc.Players.Add(player);
+			var team = dc.Teams.Single(t => t.ID == player.TeamID);
+			team.LastBid = DateTime.Now;
+            dc.SaveChanges();
+
+			player.TeamName = team.Name;
+
+			Clients.All.playerAuctioned(player);
 		}
 
-		public void GetAll()
+		public void UpdatePlayer(Player player, int originalTeamId)
 		{
-			Clients.Caller.receivedPlayers(new List<Player>() {
-				new Player() { ID = 1, FirstName = "Phillip", LastName = "Rivers", FullName = "Rivers, Phillip", NflTeam = "Chargers", Position = "QB" },
-				new Player() { ID = 2, FirstName = "Russell", LastName = "Wilson", FullName = "Wilson, Russel", NflTeam = "Seahawks", Position  = "QB" },
-				new Player() { ID = 3, FirstName = "Kirk", LastName = "Cousins", FullName = "Cousins, Kirk", NflTeam = "Redskins", Position = "QB" },
-				new Player() { ID = 4, FirstName = "Reggie", LastName = "Bush", FullName = "Bush, Reggie", NflTeam = "49ers", Position = "RB" },
-			});
+			var dc = new AuctionTrackerContext();
+			dc.Players.Attach(player);
+			dc.Entry<Player>(player).State = System.Data.Entity.EntityState.Modified;
+			dc.SaveChanges();
+			player.TeamName = dc.Teams.Single(t => t.ID == player.TeamID).Name;
+
+			Clients.All.playerUpdated(player, originalTeamId);
 		}
 	}
 }

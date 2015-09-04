@@ -1,6 +1,7 @@
 ﻿/// <reference path="knockout-3.3.0.js" />
 /// <reference path="jquery-2.1.4.js" />
 /// <reference path="jquery.signalR-2.2.0.js" />
+/// <reference path="knockout.mapping-latest.debug.js" />
 
 function RosterPosition(position, minNumber) {
 	var self = this;
@@ -25,69 +26,142 @@ function Team(data) {
 	]);
 
 	self.addPlayer = function (player) {
+		player.team(self.name());
+		player.teamId(self.id());
 		self.players.unshift(player);
-		self.rosterPositions().forEach(function (rosterPosition) {
-			if (rosterPosition.position() == player.position()) {
-				rosterPosition.number(rosterPosition.number() + 1);
-			}
-		})
+		self.resetRosterPositions();
+
+		self.totalLeft(self.totalLeft() - player.auctionAmount());
+		self.maxBid(self.totalLeft() - (16 - self.players().length) + 1);
 	}
 
-	self.totalLeft = ko.pureComputed(function () {
-		var totalBid = 0;
-		self.players().forEach(function (player) {
-			totalBid += parseInt(player.auctionAmount());
-		});
-		return (100 - totalBid);
-	});
+	self.removePlayer = function (player) {
+		self.players.remove(function (currentPlayer) { return currentPlayer.id() == player.id();});
+		self.resetRosterPositions();
 
-	self.maxBid = ko.pureComputed(function () { return self.totalLeft() - (16 - self.players().length) + 1 });
+		self.totalLeft(self.totalLeft() + player.auctionAmount());
+		self.maxBid(self.totalLeft() - (16 - self.players().length) + 1);
+	}
+
+	self.resetRosterPositions = function () {
+		self.rosterPositions().forEach(function (rosterPosition) {
+			rosterPosition.number(0);
+			self.players().forEach(function (player) {
+				if (player.position() == rosterPosition.position()) {
+					rosterPosition.number(rosterPosition.number() + 1);
+				}
+			});
+		});
+	};
+
+	self.totalLeft = ko.observable(100);
+	self.maxBid = ko.observable(0);
 };
 
 function Player(data) {
 	var self = this;
+
+	if (!data) data = { id: 0, fullName: '', nflTeam: '', position: '', auctionAmount: 0, team: '', teamId: 0 };
 	self.id = ko.observable(data.id);
-	self.firstName = ko.observable(data.firstName);
-	self.lastName = ko.observable(data.lastName);
 	self.fullName = ko.observable(data.fullName);
 	self.nflTeam = ko.observable(data.nflTeam);
 	self.position = ko.observable(data.position);
 	self.auctionAmount = ko.observable(data.auctionAmount);
+	self.teamId = ko.observable(data.teamId);
+	self.team = ko.observable(data.team);
+}
+
+function NflTeam(data) {
+	var self = this;
+	self.id = ko.observable(data.id);
+	self.name = ko.observable(data.name);
 }
 
 function AppViewModel() {
 	var self = this;
 
-	self.teams = ko.observableArray([
-		new Team({ id: 1, owner: 'jersey', name: '*Backfield Not Included' }),
-		new Team({ id: 2, owner: 'Brennan', name: 'Pistol Shrimp All-Stars' })
+	self.teams = ko.observableArray([]);
+	self.nflTeams = ko.observableArray([]);
+	self.recentlyAuctionedPlayers = ko.observableArray([]);
+	self.auctionOrder = ko.observableArray([]);
+
+	self.rosterPositions = ko.observableArray([
+		new RosterPosition('QB', 1),
+		new RosterPosition('RB', 2),
+		new RosterPosition('WR', 3),
+		new RosterPosition('TE', 1),
+		new RosterPosition('K', 1),
+		new RosterPosition('D', 1),
 	]);
 
-	self.recentlyAuctionedPlayers = ko.observableArray([]);
-
-	self.players = ko.observableArray([]);
-
 	self.currentTeam = ko.observable();
-	self.currentPlayer = ko.observable();
-	self.currentAuctionPrice = ko.observable(0);
 
-	self.auctionPlayer = function () {
-		var player = JSON.parse(ko.toJSON(self.currentPlayer));
-		var team = JSON.parse(ko.toJSON(self.currentTeam));
-		player.auctionAmount = self.currentAuctionPrice();
-		$playerHub.server.auctionPlayer(player, team).fail(function (error) { alert(error) });
+	self.displayTeam = function (team) {
+		self.currentTeam(team);
 	}
 
-	self.auctionedPlayer = function (player, team) {
+	self.currentPlayer = ko.observable(new Player(null));
+	self.originalPlayer = ko.observable(new Player(null));
+	self.isNewPlayer = ko.observable(true);
+
+	self.resetPlayer = function () {
+		self.currentPlayer(new Player(null));
+		self.originalPlayer(new Player(null));
+		self.isNewPlayer(true);
+	}
+
+	self.handlePlayer = function () {
+		if (self.isNewPlayer()) self.auctionPlayer();
+		else self.updatePlayer();
+	}
+
+	self.auctionPlayer = function () {
+		$playerHub.server.auctionPlayer(ko.toJS(self.currentPlayer)).fail(function (error) { alert(error) });
+	}
+
+	self.auctionedPlayer = function (player) {
+		self.resetPlayer();
 		player = new Player(player);
+		var team;
 		self.teams().forEach(function (tempTeam) {
-			if (tempTeam.id() == team.id) {
+			if (tempTeam.id() == player.teamId()) {
 				team = tempTeam;
 			}
 		});
-		self.recentlyAuctionedPlayers.unshift(player);
-		if (self.recentlyAuctionedPlayers().length > 10) self.recentlyAuctionedPlayers.shift();
 		team.addPlayer(player);
+
+		self.recentlyAuctionedPlayers.unshift(player);
+		if (self.recentlyAuctionedPlayers().length > 3) self.recentlyAuctionedPlayers.pop();
+
+		self.auctionOrder.unshift(self.auctionOrder.pop());
+	}
+
+
+	self.displayPlayer = function (player) {
+		self.originalPlayer(player);
+		self.currentPlayer(new Player(ko.toJS(player)));
+		self.isNewPlayer(false);
+	}
+
+	self.updatePlayer = function () {
+		$playerHub.server.updatePlayer(ko.toJS(self.currentPlayer), self.originalPlayer().teamId);
+	}
+
+	self.playerUpdated = function (player, originalTeamId) {
+		self.resetPlayer();
+		player = new Player(player);
+		self.recentlyAuctionedPlayers().forEach(function (recentPlayer) {
+			if (recentPlayer.id == player.id()) {
+				self.recentlyAuctionedPlayers.replace(recentPlayer, player);
+			}
+		})
+		self.teams().forEach(function (team) {
+			if (team.id() == originalTeamId) {
+				team.removePlayer(player);
+			} else if (team.id() == player.teamId()) {
+				team.addPlayer(player);
+			}
+		});
 	}
 }
 
@@ -96,20 +170,42 @@ ko.applyBindings(appViewModel);
 
 var $playerHub;
 $(function () {
-	$.getJSON('/api/Players/', function (players) {
-		var mappedPlayers = $.map(players, function (player) { return new Player(player) });
-		appViewModel.players(mappedPlayers);
+	$.getJSON('/api/Teams/', function (teams) {
+		var mappedTeams = $.map(teams, function (team) { return new Team(team); });
+		appViewModel.teams(mappedTeams);
+
+		appViewModel.auctionOrder(mappedTeams);
+
+		$.getJSON('/api/Teams/Players', function (playerTeams) {
+			playerTeams.forEach(function (team) {
+				var players = team.players;
+				appViewModel.teams().forEach(function (tempTeam) {
+					if (tempTeam.id() == team.id) {
+						team = tempTeam;
+					}
+				});
+				players.forEach(function (player) {
+					team.addPlayer(new Player(player));
+				});
+			});
+		});
 	});
 
-	// load hub
+	$.getJSON('/api/NflTeams/', function (nflTeams) {
+		var mappedNflTeams = $.map(nflTeams, function (nflTeam) { return new NflTeam(nflTeam); });
+		appViewModel.nflTeams(mappedNflTeams);
+	})
+
+	$.getJSON('/api/Players', function (players) {
+		var mappedPlayers = $.map(players, function (player) { return new Player(player) });
+		appViewModel.recentlyAuctionedPlayers(players);
+	})
+	
+	//load hub
 	$playerHub = $.connection.playerHub;
-	$playerHub.client.playerAuctioned = function (player, team) {
-		appViewModel.auctionedPlayer(player, team);
-	}
-	$playerHub.client.receivedPlayers = function (players) {
-		var mappedPlayers = $.map(players, function (player) { return new Player(player); });
-		appViewModel.players(mappedPlayers);
-	}
+	$playerHub.client.playerAuctioned = appViewModel.auctionedPlayer;
+	$playerHub.client.playerUpdated = appViewModel.playerUpdated;
+
 	$.connection.hub.logging = true;
 	$.connection.hub.start().done(function () {
 	});
