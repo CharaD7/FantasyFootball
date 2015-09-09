@@ -14,7 +14,8 @@ namespace AuctionTracker.Hubs
 		{
 			var dc = new AuctionTrackerContext();
 			dc.Players.Add(player);
-			var team = dc.Teams.Single(t => t.ID == player.TeamID);
+			dc.SaveChanges();
+			var team = dc.Teams.Where(t => t.Players.Count() < 16).OrderBy(t => t.LastBid).First();
 			team.LastBid = DateTime.Now;
             dc.SaveChanges();
 
@@ -32,6 +33,15 @@ namespace AuctionTracker.Hubs
 			player.TeamName = dc.Teams.Single(t => t.ID == player.TeamID).Name;
 
 			Clients.All.playerUpdated(player, originalTeamId);
+		}
+
+		public void DeletePlayer(Player player)
+		{
+			var dc = new AuctionTrackerContext();
+			dc.Players.Attach(player);
+			dc.Entry<Player>(player).State = System.Data.Entity.EntityState.Deleted;
+			dc.SaveChanges();
+			Clients.All.playerDeleted(player);
 		}
 	}
 }

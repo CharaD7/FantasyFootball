@@ -11,34 +11,35 @@
 			<div class="col-md-9">
 				<h2 class="text-center">2015 NNFFL Auction Board</h2>
 				<ul data-bind="foreach: teams" class="list-group">
-					<div class="col-md-6">
-						<li class="list-group-item btn" data-bind="click: $root.displayTeam" data-toggle="modal" data-target="#team-details">
+					<div class="col-md-4" style="margin-left: 0;">
+						<li class="list-group-item btn" data-bind="click: $root.displayTeam, css: { 'list-group-item-danger': rosterFull() }" data-toggle="modal" data-target="#team-details" style="padding-bottom: 0; margin-bottom: 3px;">
 							<div class="row">
-								<div class="col-md-9">
-									<h4>
+								<div class="col-md-12">
+									<strong>
 										<span data-bind="text: name"></span>
 										(<span data-bind="text: owner"></span>)
-									</h4>
+									</strong>
+									<ul class="list-group small list-inline">
+										<li class="list-group-item" style="padding-bottom: 3px; padding-top: 3px;">
+											<strong>Left: <span data-bind="text: totalLeft"></span></strong>
+										</li>
+										<li class="list-group-item" style="padding-bottom: 3px; padding-top: 3px;" data-bind="css: { 'list-group-item-danger': maxBid() == 1, 'list-group-item-warning': maxBid() <= 10 }">
+											<strong>Max: <span data-bind="text: maxBid"></span></strong>
+										</li>
+										<li class="list-group-item" style="padding-bottom: 3px; padding-top: 3px;">
+											<strong>Players: <span data-bind="text: players().length"></span></strong>
+										</li>
+									</ul>
 									<div>
 										<ul data-bind="foreach: rosterPositions" class="list-group list-inline">
-											<li class="list-group-item" data-bind="css: { 'list-group-item-warning' : number() < minNumber(), 'list-group-item-success' : number() >= minNumber() }">
-												<strong class="small">
+											<li class="list-group-item" data-bind="css: { 'list-group-item-info' : number() < minNumber(), 'list-group-item-success' : number() >= minNumber() }" style="padding-bottom: 3px; padding-top: 3px; margin: 0;">
+												<span style="font-size: x-small; font-weight: bold;">
 													<span data-bind="text: position"></span>:
 													<span data-bind="text: number"></span>
-												</strong>
+												</span>
 											</li>
 										</ul>
 									</div>
-								</div>
-								<div class="col-md-3">
-									<ul class="list-group small">
-										<li class="list-group-item">
-											Left: <span data-bind="text: totalLeft"></span>
-										</li>
-										<li class="list-group-item">
-											Max: <span data-bind="text: maxBid"></span>
-										</li>
-									</ul>
 								</div>
 							</div>
 						</li>
@@ -47,20 +48,22 @@
 				</ul>
 			</div>
 			<div class="col-md-3">
+				<div class="text-center">
+					<button class="btn btn-info btn-lg" data-toggle="modal" data-target="#player-details" data-bind="click: resetPlayer">Auction Player</button>
+				</div>
 
 				<h4>Recent players</h4>
-				<ul data-bind="template: { name: 'player-template', foreach: recentlyAuctionedPlayers }" class="list-group"></ul>
+				<!--<ul data-bind="template: { name: 'player-template', foreach: recentlyAuctionedPlayers }" class="list-group">-->
+				<div data-bind="component: { name: 'display-player', params: { players: recentlyAuctionedPlayers } }">
+
+				</div>
 
 				<h4>Auction order</h4>
 				<ul class="list-group" data-bind="foreach: auctionOrder">
 					<li class="list-group-item">
-						<span data-bind="text: name"></span>
+						<span data-bind="text: owner"></span>
 					</li>
 				</ul>
-
-				<div class="text-center">
-					<button	class="btn btn-info btn-lg" data-toggle="modal" data-target="#player-details" data-bind="click: resetPlayer">Auction Player</button>
-				</div>
 			</div>
 		</div>
 	</div>
@@ -82,8 +85,11 @@
 								<th>$$</th>
 							</tr>
 						</thead>
-						<tbody data-bind="foreach: players">
-							<tr>
+						<tbody data-bind="foreach: players.sort(function (l, r) {
+			if (l.sortNumber() > r.sortNumber()) return 1;
+			if (l.sortNumber() < r.sortNumber()) return -1;
+			return 0;})">
+							<tr data-bind="click: $root.displayPlayer" style="cursor: pointer;" data-toggle="modal" data-target="#player-details">
 								<td data-bind="text: position"></td>
 								<td data-bind="text: fullName"></td>
 								<td data-bind="text: nflTeam"></td>
@@ -108,7 +114,7 @@
 						<div class="form-group">
 							<label class="col-md-3">Team:</label>
 							<div class="col-md-9">
-								<select class="form-control" data-bind="options: $root.teams, optionsText: 'name', optionsValue: 'id', optionsCaption: 'Select NNFFL team', value: $data.teamId"></select>
+								<select class="form-control" data-bind="options: $root.isNewPlayer() ?  $root.auctionOrder : $root.teams, optionsText: 'owner', optionsValue: 'id', optionsCaption: 'Select NNFFL team', value: $data.teamId"></select>
 							</div>
 						</div>
 						<div class="form-group">
@@ -140,6 +146,7 @@
 				<div class="modal-footer">
 					<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
 					<button type="button" class="btn btn-primary" data-dismiss="modal" data-bind="click: $root.handlePlayer, text: $root.isNewPlayer() ? 'Auction Player' : 'Update Player'"></button>
+					<button type="button" data-bind="click: $root.deletePlayer, visible: (!$root.isNewPlayer())" class="btn btn-danger" data-dismiss="modal">Delete player</button>
 				</div>
 			</div>
 		</div>
@@ -154,16 +161,18 @@
 
 	<!-- templates -->
 	<script typeof="text/html" id="player-template">
-		<li class="list-group-item btn" data-bind="click: $root.displayPlayer" data-toggle="modal" data-target="#player-details">
-			<div>
-				<strong>
-					<span data-bind="text: fullName"></span>
-					- $<span data-bind="text: auctionAmount"></span>
-				</strong>
-			</div>
-			<div>(<span data-bind="text: nflTeam"></span> - <span data-bind="text: position"></span>)</div>
-			<div data-bind="text: team"></div>
-		</li>
+		<ul data-bind="foreach: players" class="list-group">
+			<li class="list-group-item btn" data-bind="click: $root.displayPlayer" data-toggle="modal" data-target="#player-details">
+				<div>
+					<strong>
+						<span data-bind="text: fullName"></span>
+						- $<span data-bind="text: auctionAmount"></span>
+					</strong>
+				</div>
+				<div>(<span data-bind="text: nflTeam"></span> - <span data-bind="text: position"></span>)</div>
+				<div data-bind="text: team"></div>
+			</li>
+		</ul>
 	</script>
 </body>
 </html>

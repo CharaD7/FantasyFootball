@@ -11,7 +11,7 @@ namespace AuctionTracker.Controllers
     {
 		public List<Team> Get()
 		{
-			return new AuctionTrackerContext().Teams.OrderBy(t => t.LastBid).ToList();
+			return new AuctionTrackerContext().Teams.OrderBy(t => t.Name).ToList();
         }
 
 		[Route("api/Teams/Players")]
@@ -22,6 +22,13 @@ namespace AuctionTracker.Controllers
 			var teams = dc.Teams.Include(t => t.Players).ToList();
 
 			return Ok(teams);
+		}
+
+		[Route("api/Teams/AuctionOrder")]
+		[HttpGet]
+		public IHttpActionResult AuctionOrder()
+		{
+			return Ok(new AuctionTrackerContext().Teams.OrderBy(t => t.LastBid).ToList());
 		}
 	}
 

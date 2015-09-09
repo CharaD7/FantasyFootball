@@ -10,7 +10,7 @@ namespace AuctionTracker.Migrations
 	{
 		public Configuration()
 		{
-			AutomaticMigrationsEnabled = true;
+			AutomaticMigrationsEnabled = false;
 		}
 
 		protected override void Seed(AuctionTracker.Models.AuctionTrackerContext context)

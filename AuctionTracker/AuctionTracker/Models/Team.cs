@@ -13,7 +13,6 @@ namespace AuctionTracker.Models
 
 		public List<Player> Players { get; set; }
 
-		[JsonIgnore]
 		public DateTime LastBid { get; set; }
 	}
 }
